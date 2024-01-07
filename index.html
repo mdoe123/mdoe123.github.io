@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <title>awa</title>
+  <meta charset="UTF-8">
 <body>
   <h1>你肯定是扫了这个二维码</h1>
   <p>网上不要随便乱扫哦</p>
@@ -20,3 +21,40 @@
     preload="auto"
     src="nevergiveup.mp3">
     </audio>
+<html>
+
+  <body>
+    <h1>距离寒假结束还有</h1>
+    <div id="countdown"></div>
+
+    <script>
+      // 倒计时截止时间，以毫秒为单位
+      var end = new Date('2024-03-01T00:00:00.000Z').getTime();
+
+      // 每秒更新倒计时
+      var countdown = setInterval(function() {
+        // 获取当前时间，以毫秒为单位
+        var now = new Date().getTime();
+
+        // 计算剩余时间
+        var distance = end - now;
+
+        // 计算剩余时间中的天、时、分、秒
+        var days = Math.floor(distance / (1000 * 60 * 60 * 24));
+        var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        // 输出剩余时间
+        document.getElementById('countdown').innerHTML = days + '天 ' + hours + '小时 '
+        + minutes + '分 ' + seconds + '秒 ';
+
+        // 如果倒计时结束，清除计时器
+        if (distance < 0) {
+          clearInterval(countdown);
+          document.getElementById('countdown').innerHTML = '倒计时已结束';
+        }
+      }, 1000);
+    </script>
+  </body>
+</html>
