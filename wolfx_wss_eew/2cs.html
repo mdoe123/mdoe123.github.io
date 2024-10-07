@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Wolfx 预警接收 wss</title>
+    <style>
+        .flash-blue {
+            background-color: #ADD8E6; /* 蓝色 */
+        }
+
+        .flash-yellow {
+            background-color: #FFDE00; /* 黄色 */
+        }
+
+        .flash-red {
+            background-color: #FF3636; /* 红色 */
+        }
+
+        .flash-purple {
+            background-color: #800080; /* 紫色 */
+        }
+
+        .flash-red-black {
+            background-color: #FF0000; /* 红黑色 */
+        }
+    </style>
+</head>
+<body>
+    <input id="message" type="text" placeholder="输入要发送的内容">
+    <button id="send">发送</button>
+    <button id="disconnect">断开连接</button>
+    <div id="output"></div>
+
+    <script>
+        let messageArray = [];
+
+        // 创建 WebSocket 对象
+        const socket = new WebSocket('wss://ws-api.wolfx.jp/all_eew');
+
+        // 连接成功时执行
+        socket.onopen = () => {
+            console.log('连接成功');
+            document.getElementById('output').innerHTML += '连接成功<br>';
+        };
+
+        // 收到消息时执行
+        socket.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            if (message.type === 'heartbeat') {
+                return; // 忽略心跳包
+            }
+            const currentTime = new Date().toLocaleTimeString(); // 获取当前时间
+            messageArray.push({ content: message, time: currentTime });
+
+            let outputHTML = '';
+            messageArray.slice().reverse().forEach((message) => {
+                let prefix = ''; // 消息前缀
+                if (message.content.type === 'sc_eew') {
+                    prefix = '【四川地震局】';
+                } else if (message.content.type === 'jma_eew') {
+                    prefix = '【JMA】';
+                } else if (message.content.type === 'fj_eew') {
+                    prefix = '【福建地震局】';
+                } else {
+                    prefix = '【其他】';
+                }
+                if (message.content.type === 'sc_eew' && message.content.HypoCenter) {
+                    outputHTML += `${message.time} ${prefix}收到四川地震局的地震预警：<br>发震时间:${message.content.OriginTime}第${message.content.ReportNum}报<br>震源：${message.content.HypoCenter}<br>纬度：${message.content.Latitude}<br>经度：${message.content.Longitude}<br>震级：${message.content.Magunitude}<br>最大烈度：${message.content.MaxIntensity}<br>`;
+                    flash(message.content.Magunitude); // 闪烁效果
+                } else if (message.content.type === 'jma_eew' && message.content.Hypocenter) {
+                    outputHTML += `${message.time} ${prefix}收到 JMA 的紧急地震速报：<br>发震时间:${message.content.OriginTime}第${message.content.EventID}报<br>震源：${message.content.Hypocenter}<br>纬度：${message.content.Latitude}<br>经度：${message.content.Longitude}<br>震级：${message.content.Magunitude}<br>最大震度：${message.content.MaxIntensity}<br>`;
+                    flash(message.content.Magunitude); // 闪烁效果
+                } else if (message.content.type === 'fj_eew' && message.content.HypoCenter) {
+                    outputHTML += `${message.time} ${prefix}收到福建地震局的地震预警：<br>发震时间:${message.content.OriginTime}第${message.content.ReportNum}报<br>震源：${message.content.HypoCenter}<br>纬度：${message.content.Latitude}<br>经度：${message.content.Longitude}<br>震级：${message.content.Magunitude}<br>最大烈度：${message.content.MaxIntensity}<br>`;
+                    flash(message.content.Magunitude); // 闪烁效果
+                } else if (message.content.type === 'cenc_eqlist') {
+                    outputHTML += `${message.time} ${prefix}收到中国地震台网信息：<br>`;
+                    for (let i = 1; i <= 50; i++) {
+                        const earthquakeInfo = message.content[`No${i}`];
+                        if (earthquakeInfo) {
+                            outputHTML += `发震时间：${earthquakeInfo.time}<br>`;
+                            outputHTML += `震源地：${earthquakeInfo.location}<br>`;
+                            outputHTML += `震级：${earthquakeInfo.magnitude}<br>`;
+                            outputHTML += `震源深度：${earthquakeInfo.depth}km<br>`;
+                            outputHTML += `纬度：${earthquakeInfo.latitude}<br>`;
+                            outputHTML += `经度：${earthquakeInfo.longitude}<br>`;
+                            outputHTML += `最大烈度：${earthquakeInfo.intensity}<br><br>`;
+                        }
+                    }
+                } else if (message.content.type === 'jma_eqlist') {
+                    outputHTML += `${message.time} ${prefix}收到 JMA 的地震情報：<br>`;
+                    for (let i = 1; i <= 50; i++) {
+                        const earthquakeInfo = message.content[`No${i}`];
+                        if (earthquakeInfo) {
+                            outputHTML += `地震编号：${earthquakeInfo.EventID}<br>`;
+                            outputHTML += `发震时间：${earthquakeInfo.time_full}<br>`;
+                            outputHTML += `震源地：${earthquakeInfo.location}<br>`;
+                            outputHTML += `震级：${earthquakeInfo.magnitude}<br>`;
+                            outputHTML += `最大震度：${earthquakeInfo.shindo}<br>`;
+                            outputHTML += `震源深度：${earthquakeInfo.depth}km<br>`;
+                            outputHTML += `纬度：${earthquakeInfo.latitude}<br>`;
+                            outputHTML += `经度：${earthquakeInfo.longitude}<br>`;
+                            outputHTML += `津波情报：${earthquakeInfo.info}<br><br>`;
+                        }
+                    }
+                } else {
+                    outputHTML += `${message.time} ${prefix}收到其他消息：<br>${event.data}<br>`;
+                }
+            });
+            const outputElement = document.getElementById('output');
+            outputElement.innerHTML = outputHTML;
+
+            // 收到消息时播放音频
+            const audio = new Audio('audu1.mp3');
+            audio.play();
+        };
+
+        // 连接关闭时执行
+        socket.onclose = () => {
+            console.log('连接关闭');
+            document.getElementById('output').innerHTML += '连接关闭<br>';
+        };
+
+        // 发生错误时执行
+        socket.onerror = (event) => {
+            console.log('发生错误:', event);
+            document.getElementById('output').innerHTML += `发生错误: ${event}<br>`;
+        };
+
+        // 发送消息
+        document.getElementById('send').addEventListener('click', () => {
+            const message = document.getElementById('message').value;
+            socket.send(message);
+            document.getElementById('message').value = '';
+        });
+
+        // 断开连接
+        document.getElementById('disconnect').addEventListener('click', () => {
+            socket.close();
+        });
+
+        // 闪烁效果
+        function flash(magnitude) {
+            let count = 0;
+            const bodyElement = document.body;
+            let className;
+            let audio;
+
+            if (magnitude <= 3.5) {
+                className = 'flash-blue';
+                audio = new Audio('tsy.mp3'); // 蓝色闪烁播放音频1
+            } else if (magnitude >= 3.5 && magnitude < 5.0) {
+                className = 'flash-yellow';
+                audio = new Audio('2ygdz.mp3'); // 黄色闪烁播放音频2
+            } else if (magnitude >= 5.0 && magnitude < 7.0) {
+                className = 'flash-red';
+                audio = new Audio('3phxzd.mp3'); // 红色闪烁播放音频3
+            } else if (magnitude >= 7.0 && magnitude < 8.5) {
+                className = 'flash-purple'; // 紫色闪烁
+                audio = new Audio('4qldz.mp3'); // 紫色闪烁播放音频4
+            } else {
+                className = 'flash-red-black'; // 红黑色闪烁
+                audio = new Audio('5tdaqldz.mp3'); // 红黑色闪烁播放音频5
+            }
+
+            setTimeout(() => {
+                const intervalId = setInterval(() => {
+                    bodyElement.classList.toggle(className);
+                    count++;
+                    if (count >= 5) {
+                        clearInterval(intervalId);
+                        setTimeout(() => {
+                            bodyElement.classList.remove(className);
+                        }, 10000); // 10 秒后变回白色
+                    }
+                }, 2000); // 间隔 1 秒
+
+                audio.play(); // 播放音频
+            }, 1000); // 1 秒后播放音频
+        }
+    </script>
+</body>
+</html>
